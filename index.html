@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,11 +34,19 @@
             padding: 10px;
             border-radius: 5px;
             margin-bottom: 10px;
-            height: 60px;
+            height: 120px; /* 再次增加高度 */
             overflow-y: auto;
             box-sizing: border-box;
-            text-align: right;
             font-size: 1em;
+            scroll-behavior: smooth;
+        }
+        .history div {
+            padding: 4px 0;  /* 增加条目间距 */
+            border-bottom: 1px solid #eee;
+        }
+        .history-title {
+            color: #ccc;
+            margin-bottom: 5px;
         }
         .display {
             width: 100%;
@@ -97,7 +105,7 @@
 <body>
     <div class="calculator">
         <div class="title">Ricky的计算器</div>
-        <div class="history" id="history">历史记录</div>
+        <div class="history" id="history"><div class="history-title">历史记录</div></div>
         <div class="display" id="display">0</div>
         <div class="buttons">
             <button class="button" onclick="appendNumber('7')">7</button>
@@ -123,59 +131,93 @@
     </div>
 
     <script>
-        let display = document.getElementById('display');
-        let history = document.getElementById('history');
-        let currentOperand = '';
+        const display = document.getElementById('display');
+        const history = document.getElementById('history');
         let formula = '';
+        let currentOperand = '';
+        let isNewCalculation = true;
 
         function appendNumber(number) {
-            if (history.innerText === '历史记录') {
-                history.innerText = '';
+            if (isNewCalculation) {
+                formula = '';
+                isNewCalculation = false;
             }
-            currentOperand = currentOperand.toString() + number.toString();
-            formula = formula.toString() + number.toString();
+            
+            // 处理小数点重复
+            if (number === '.' && currentOperand.includes('.')) return;
+            
+            // 替换初始零
+            if (formula === '0' && number !== '.') formula = '';
+            
+            currentOperand += number;
+            formula += number;
             updateDisplay();
         }
 
         function appendOperator(operator) {
-            if (currentOperand === '' && operator !== '-') return; // Prevent multiple operators
-            if (currentOperand === '' && operator === '-') {
-                currentOperand = '-';
-                formula = formula.toString() + operator.toString();
-                updateDisplay();
-                return;
+            const lastChar = formula.slice(-1);
+            const operators = '+-*/';
+            
+            // 严格处理连续运算符逻辑
+            if (operators.includes(lastChar)) {
+                // 只允许在*/后输入负号
+                if (operator === '-' && '*/'.includes(lastChar)) {
+                    formula += operator;
+                } else {
+                    return;
+                }
+            } else {
+                formula += operator;
             }
-            formula = formula.toString() + operator.toString();
+            
             currentOperand = '';
+            isNewCalculation = false;
             updateDisplay();
         }
 
         function updateDisplay() {
-            display.innerText = formula;
+            display.innerText = formula || '0';
+            // 确保历史记录自动滚动
+            setTimeout(() => {
+                history.scrollTop = history.scrollHeight + 50;
+            }, 10);
         }
 
         function compute() {
             try {
-                let result = eval(formula).toString();
-                history.innerHTML += `<div>${formula} = ${result}</div>`;
-                formula = result;
-                currentOperand = result;
-                updateDisplay();
+                if (!formula) return;
+                
+                const originalFormula = formula;
+                const result = new Function(`return ${originalFormula}`)();
+                
+                // 添加历史记录并确保显示最后一行
+                history.innerHTML += `<div>${originalFormula} = ${result}</div>`;
+                history.scrollTop = history.scrollHeight;
+                
+                display.innerText = result;
+                formula = result.toString();
+                isNewCalculation = true;
             } catch (e) {
-                display.innerText = 'Error';
+                display.innerText = '错误';
+                setTimeout(() => {
+                    display.innerText = '0';
+                    formula = '';
+                }, 1000);
             }
         }
 
         function clearDisplay() {
-            currentOperand = '';
             formula = '';
-            updateDisplay();
-            history.innerText = '历史记录';
+            currentOperand = '';
+            display.innerText = '0';
+            isNewCalculation = true;
         }
 
         function deleteLast() {
             if (formula.length > 0) {
                 formula = formula.slice(0, -1);
+                currentOperand = formula.split(/[-+*/]/).pop() || '';
+                isNewCalculation = formula.length === 0;
                 updateDisplay();
             }
         }
