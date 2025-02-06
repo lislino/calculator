@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ricky的计算器</title>
+    <title>高精度计算器</title>
     <style>
         body {
             display: flex;
@@ -34,14 +34,14 @@
             padding: 10px;
             border-radius: 5px;
             margin-bottom: 10px;
-            height: 120px; /* 再次增加高度 */
+            height: 120px;
             overflow-y: auto;
             box-sizing: border-box;
             font-size: 1em;
             scroll-behavior: smooth;
         }
         .history div {
-            padding: 4px 0;  /* 增加条目间距 */
+            padding: 4px 0;
             border-bottom: 1px solid #eee;
         }
         .history-title {
@@ -137,6 +137,21 @@
         let currentOperand = '';
         let isNewCalculation = true;
 
+        // 精度处理函数（修复版）
+        function formatResult(num) {
+            // 处理极小值
+            if (Math.abs(num) < 1e-10) return '0';
+            
+            // 处理整数
+            if (Number.isInteger(num)) return num.toString();
+            
+            // 处理小数
+            let str = num.toFixed(12);
+            str = str.replace(/0+$/, ''); // 去除末尾的零
+            if (str.endsWith('.')) str = str.slice(0, -1); // 去除多余的小数点
+            return str;
+        }
+
         function appendNumber(number) {
             if (isNewCalculation) {
                 formula = '';
@@ -146,19 +161,19 @@
             // 处理小数点重复
             if (number === '.' && currentOperand.includes('.')) return;
             
-            // 替换初始零
+            // 替换前导零
             if (formula === '0' && number !== '.') formula = '';
             
             currentOperand += number;
             formula += number;
-            updateDisplay();
+            display.innerText = formula;
         }
 
         function appendOperator(operator) {
             const lastChar = formula.slice(-1);
             const operators = '+-*/';
             
-            // 严格处理连续运算符逻辑
+            // 严格运算符检查
             if (operators.includes(lastChar)) {
                 // 只允许在*/后输入负号
                 if (operator === '-' && '*/'.includes(lastChar)) {
@@ -172,15 +187,7 @@
             
             currentOperand = '';
             isNewCalculation = false;
-            updateDisplay();
-        }
-
-        function updateDisplay() {
-            display.innerText = formula || '0';
-            // 确保历史记录自动滚动
-            setTimeout(() => {
-                history.scrollTop = history.scrollHeight + 50;
-            }, 10);
+            display.innerText = formula;
         }
 
         function compute() {
@@ -188,9 +195,10 @@
                 if (!formula) return;
                 
                 const originalFormula = formula;
-                const result = new Function(`return ${originalFormula}`)();
+                const rawResult = new Function(`return ${originalFormula}`)();
+                const result = formatResult(rawResult);
                 
-                // 添加历史记录并确保显示最后一行
+                // 显示优化
                 history.innerHTML += `<div>${originalFormula} = ${result}</div>`;
                 history.scrollTop = history.scrollHeight;
                 
@@ -217,8 +225,8 @@
             if (formula.length > 0) {
                 formula = formula.slice(0, -1);
                 currentOperand = formula.split(/[-+*/]/).pop() || '';
-                isNewCalculation = formula.length === 0;
-                updateDisplay();
+                isNewCalculation = false;
+                display.innerText = formula || '0';
             }
         }
     </script>
